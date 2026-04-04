@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataMind — Analista de Datos IA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0b0f;
+    --bg2: #111318;
+    --bg3: #181b22;
+    --bg4: #1e2230;
+    --accent: #00d4aa;
+    --accent2: #7c5cfc;
+    --accent3: #ff6b6b;
+    --text: #e8eaf2;
+    --text2: #8b90a7;
+    --text3: #555a72;
+    --border: rgba(255,255,255,0.06);
+    --border2: rgba(255,255,255,0.12);
+    --glow: 0 0 30px rgba(0,212,170,0.15);
+    --sidebar: 260px;
+    --font-main: 'Syne', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-code: 'DM Mono', monospace;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; font-family:var(--font-body); background:var(--bg); color:var(--text); overflow:hidden; }
+
+  /* LAYOUT */
+  .app { display:flex; height:100vh; }
+  .sidebar {
+    width:var(--sidebar); background:var(--bg2); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; flex-shrink:0; overflow:hidden;
+    position:relative; z-index:10;
+  }
+  .main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+  /* SIDEBAR */
+  .sidebar-logo {
+    padding:24px 20px 20px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:10px;
+  }
+  .logo-icon {
+    width:32px; height:32px; border-radius:8px;
+    background:linear-gradient(135deg, var(--accent), var(--accent2));
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .logo-icon svg { width:18px; height:18px; }
+  .logo-text { font-family:var(--font-main); font-size:16px; font-weight:700; letter-spacing:-0.3px; }
+  .logo-text span { color:var(--accent); }
+
+  .sidebar-nav { padding:12px 10px; flex:1; overflow-y:auto; }
+  .nav-section-label {
+    font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:2px;
+    color:var(--text3); padding:8px 10px 4px;
+  }
+  .nav-item {
+    display:flex; align-items:center; gap:10px; padding:9px 10px;
+    border-radius:8px; cursor:pointer; transition:all 0.15s;
+    font-size:13px; color:var(--text2); margin-bottom:1px;
+    border:1px solid transparent;
+  }
+  .nav-item:hover { background:var(--bg3); color:var(--text); }
+  .nav-item.active {
+    background:rgba(0,212,170,0.1); color:var(--accent);
+    border-color:rgba(0,212,170,0.2);
+  }
+  .nav-item svg { width:15px; height:15px; flex-shrink:0; }
+  .nav-badge {
+    margin-left:auto; background:var(--accent2); color:#fff;
+    font-size:9px; font-weight:600; padding:2px 6px; border-radius:20px;
+  }
+
+  .sidebar-files { padding:10px; border-top:1px solid var(--border); }
+  .upload-zone {
+    border:1px dashed var(--border2); border-radius:10px; padding:14px;
+    text-align:center; cursor:pointer; transition:all 0.2s;
+    background:transparent;
+  }
+  .upload-zone:hover { border-color:var(--accent); background:rgba(0,212,170,0.04); }
+  .upload-zone svg { width:20px; height:20px; color:var(--accent); margin-bottom:6px; }
+  .upload-zone p { font-size:11px; color:var(--text2); line-height:1.5; }
+  .upload-zone span { color:var(--accent); font-weight:600; }
+  #fileInput { display:none; }
+
+  .file-list { margin-top:8px; max-height:160px; overflow-y:auto; }
+  .file-item {
+    display:flex; align-items:center; gap:8px; padding:7px 8px;
+    border-radius:7px; background:var(--bg3); margin-bottom:4px;
+    cursor:pointer; border:1px solid transparent; transition:all 0.15s;
+  }
+  .file-item:hover { border-color:var(--border2); }
+  .file-item.selected { border-color:var(--accent); background:rgba(0,212,170,0.08); }
+  .file-icon { width:26px; height:26px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; }
+  .file-icon.xlsx { background:rgba(0,200,100,0.15); color:#00c864; }
+  .file-icon.csv { background:rgba(0,180,255,0.15); color:#00b4ff; }
+  .file-icon.pdf { background:rgba(255,80,80,0.15); color:#ff5050; }
+  .file-icon.docx { background:rgba(100,100,255,0.15); color:#6464ff; }
+  .file-icon.json { background:rgba(255,160,0,0.15); color:#ffa000; }
+  .file-name { font-size:11px; color:var(--text); truncate; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .file-size { font-size:10px; color:var(--text3); flex-shrink:0; }
+
+  /* TOPBAR */
+  .topbar {
+    height:52px; background:var(--bg2); border-bottom:1px solid var(--border);
+    display:flex; align-items:center; padding:0 20px; gap:16px; flex-shrink:0;
+  }
+  .topbar-tabs { display:flex; gap:2px; }
+  .tab-btn {
+    padding:5px 14px; border-radius:7px; font-size:12px; font-weight:500;
+    cursor:pointer; border:none; background:transparent; color:var(--text2);
+    transition:all 0.15s; font-family:var(--font-body);
+  }
+  .tab-btn:hover { background:var(--bg3); color:var(--text); }
+  .tab-btn.active { background:var(--bg4); color:var(--text); }
+  .topbar-right { margin-left:auto; display:flex; align-items:center; gap:10px; }
+  .status-dot { width:8px; height:8px; border-radius:50%; background:var(--accent); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .status-text { font-size:11px; color:var(--text2); }
+
+  /* PANELS */
+  .panel { display:none; flex:1; overflow:hidden; }
+  .panel.active { display:flex; }
+
+  /* DASHBOARD */
+  #dashboard { flex-direction:column; overflow:auto; padding:24px; gap:20px; }
+  .dash-header { display:flex; align-items:flex-start; justify-content:space-between; }
+  .dash-title { font-family:var(--font-main); font-size:26px; font-weight:700; letter-spacing:-0.5px; }
+  .dash-title span { color:var(--accent); }
+  .dash-subtitle { font-size:13px; color:var(--text2); margin-top:4px; }
+
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .kpi-card {
+    background:var(--bg2); border:1px solid var(--border); border-radius:12px;
+    padding:18px; position:relative; overflow:hidden;
+  }
+  .kpi-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  }
+  .kpi-card.k1::before { background:linear-gradient(90deg,var(--accent),transparent); }
+  .kpi-card.k2::before { background:linear-gradient(90deg,var(--accent2),transparent); }
+  .kpi-card.k3::before { background:linear-gradient(90deg,#ff9d00,transparent); }
+  .kpi-card.k4::before { background:linear-gradient(90deg,var(--accent3),transparent); }
+  .kpi-label { font-size:11px; color:var(--text2); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+  .kpi-value { font-family:var(--font-main); font-size:28px; font-weight:700; color:var(--text); }
+  .kpi-change { font-size:11px; margin-top:6px; }
+  .kpi-change.up { color:var(--accent); }
+  .kpi-change.down { color:var(--accent3); }
+
+  .chart-grid { display:grid; grid-template-columns:2fr 1fr; gap:12px; }
+  .chart-card {
+    background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:18px;
+  }
+  .chart-title { font-size:13px; font-weight:600; color:var(--text); margin-bottom:4px; }
+  .chart-sub { font-size:11px; color:var(--text2); margin-bottom:16px; }
+  .chart-wrap { position:relative; height:200px; }
+
+  /* DATA TABLE */
+  #datatable { flex-direction:column; overflow:hidden; }
+  .dt-toolbar {
+    padding:14px 20px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:10px; flex-shrink:0; background:var(--bg2);
+  }
+  .dt-search {
+    background:var(--bg3); border:1px solid var(--border2); border-radius:8px;
+    padding:7px 12px; font-size:13px; color:var(--text); outline:none;
+    font-family:var(--font-body); width:260px;
+  }
+  .dt-search::placeholder { color:var(--text3); }
+  .dt-search:focus { border-color:var(--accent); }
+  .dt-btn {
+    background:var(--bg3); border:1px solid var(--border2); border-radius:8px;
+    padding:7px 14px; font-size:12px; color:var(--text2); cursor:pointer;
+    font-family:var(--font-body); transition:all 0.15s; white-space:nowrap;
+  }
+  .dt-btn:hover { border-color:var(--border2); color:var(--text); }
+  .dt-btn.primary { background:rgba(0,212,170,0.1); border-color:rgba(0,212,170,0.3); color:var(--accent); }
+  .dt-info { margin-left:auto; font-size:11px; color:var(--text3); }
+
+  .table-wrap { flex:1; overflow:auto; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  thead th {
+    position:sticky; top:0; background:var(--bg2); padding:10px 14px;
+    text-align:left; font-size:10px; font-weight:600; text-transform:uppercase;
+    letter-spacing:1px; color:var(--text2); border-bottom:1px solid var(--border2);
+    cursor:pointer; user-select:none; white-space:nowrap;
+  }
+  thead th:hover { color:var(--accent); }
+  thead th.sorted { color:var(--accent); }
+  tbody tr { border-bottom:1px solid var(--border); transition:background 0.1s; }
+  tbody tr:hover { background:var(--bg3); }
+  tbody td { padding:9px 14px; color:var(--text); font-family:var(--font-code); font-size:11px; }
+  .cell-num { color:var(--accent); }
+  .cell-null { color:var(--text3); font-style:italic; }
+
+  /* SQL EDITOR */
+  #sqleditor { flex-direction:column; overflow:hidden; }
+  .sql-top { display:flex; flex:1; overflow:hidden; }
+  .sql-editor-pane { flex:1; display:flex; flex-direction:column; border-right:1px solid var(--border); }
+  .sql-pane-header {
+    padding:10px 16px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:10px; background:var(--bg2); flex-shrink:0;
+  }
+  .pane-title { font-size:12px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:1px; }
+  .run-btn {
+    background:var(--accent); color:#000; border:none; border-radius:7px;
+    padding:6px 16px; font-size:12px; font-weight:700; cursor:pointer;
+    font-family:var(--font-body); transition:all 0.15s; display:flex; align-items:center; gap:6px;
+  }
+  .run-btn:hover { background:#00f0c0; transform:translateY(-1px); }
+  #sqlTextarea {
+    flex:1; background:var(--bg); border:none; outline:none; resize:none;
+    font-family:var(--font-code); font-size:13px; color:var(--text); padding:16px;
+    line-height:1.7;
+  }
+  .sql-schema-pane {
+    width:220px; background:var(--bg2); display:flex; flex-direction:column;
+    overflow:hidden; flex-shrink:0;
+  }
+  .schema-list { flex:1; overflow-y:auto; padding:10px; }
+  .schema-table { margin-bottom:12px; }
+  .schema-table-name {
+    font-size:12px; font-weight:600; color:var(--accent); margin-bottom:4px;
+    display:flex; align-items:center; gap:6px; cursor:pointer;
+    padding:4px 6px; border-radius:5px;
+  }
+  .schema-table-name:hover { background:var(--bg3); }
+  .schema-col {
+    font-size:11px; color:var(--text2); padding:2px 12px;
+    display:flex; justify-content:space-between;
+  }
+  .schema-type { color:var(--text3); font-family:var(--font-code); font-size:10px; }
+  .sql-results { height:220px; border-top:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+
+  /* VISUALIZATION */
+  #visualization { flex-direction:column; overflow:hidden; }
+  .viz-toolbar {
+    padding:12px 20px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:10px; background:var(--bg2); flex-shrink:0; flex-wrap:wrap;
+  }
+  .viz-select {
+    background:var(--bg3); border:1px solid var(--border2); border-radius:8px;
+    padding:7px 12px; font-size:12px; color:var(--text); outline:none; font-family:var(--font-body);
+    cursor:pointer;
+  }
+  .viz-select:focus { border-color:var(--accent); }
+  .viz-area { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:0; overflow:hidden; }
+  .viz-chart-wrap { padding:20px; border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+  .viz-config { padding:20px; overflow-y:auto; }
+  .config-group { margin-bottom:18px; }
+  .config-label { font-size:11px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+  .config-input {
+    width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:8px;
+    padding:8px 12px; font-size:13px; color:var(--text); outline:none; font-family:var(--font-body);
+  }
+  .config-input:focus { border-color:var(--accent); }
+
+  /* CHATBOT */
+  #chatbot { flex-direction:column; overflow:hidden; }
+  .chat-messages {
+    flex:1; overflow-y:auto; padding:24px; display:flex; flex-direction:column; gap:16px;
+  }
+  .chat-messages::-webkit-scrollbar { width:4px; }
+  .chat-messages::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+  .msg { display:flex; gap:12px; max-width:780px; }
+  .msg.user { flex-direction:row-reverse; margin-left:auto; }
+  .msg-avatar {
+    width:32px; height:32px; border-radius:8px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:13px;
+  }
+  .msg.ai .msg-avatar { background:linear-gradient(135deg,var(--accent),var(--accent2)); }
+  .msg.user .msg-avatar { background:var(--bg4); border:1px solid var(--border2); }
+  .msg-content {
+    background:var(--bg2); border:1px solid var(--border); border-radius:12px;
+    padding:14px 16px; font-size:13px; line-height:1.7; max-width:600px;
+  }
+  .msg.user .msg-content {
+    background:rgba(0,212,170,0.08); border-color:rgba(0,212,170,0.2); color:var(--text);
+  }
+  .msg-content code {
+    background:var(--bg3); padding:2px 6px; border-radius:4px;
+    font-family:var(--font-code); font-size:12px; color:var(--accent);
+  }
+  .msg-content pre {
+    background:var(--bg3); border:1px solid var(--border); border-radius:8px;
+    padding:12px; margin:8px 0; overflow-x:auto;
+  }
+  .msg-content pre code { background:none; padding:0; color:var(--text2); font-size:12px; }
+  .msg-content .insight-card {
+    background:rgba(124,92,252,0.1); border:1px solid rgba(124,92,252,0.25);
+    border-radius:8px; padding:12px; margin-top:8px;
+  }
+  .msg-content .insight-card h4 { font-size:12px; color:var(--accent2); margin-bottom:6px; }
+  .msg-content .insight-card ul { padding-left:16px; font-size:12px; color:var(--text2); }
+  .msg-content .insight-card ul li { margin-bottom:3px; }
+
+  .chat-typing { display:flex; gap:5px; align-items:center; padding:14px 16px; }
+  .typing-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:tdot 1.2s infinite; }
+  .typing-dot:nth-child(2) { animation-delay:0.2s; }
+  .typing-dot:nth-child(3) { animation-delay:0.4s; }
+  @keyframes tdot { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
+
+  .chat-input-wrap {
+    padding:16px 20px; border-top:1px solid var(--border); background:var(--bg2);
+    display:flex; gap:10px; align-items:flex-end; flex-shrink:0;
+  }
+  #chatInput {
+    flex:1; background:var(--bg3); border:1px solid var(--border2); border-radius:10px;
+    padding:10px 14px; font-size:13px; color:var(--text); outline:none; resize:none;
+    font-family:var(--font-body); max-height:120px; min-height:42px; line-height:1.5;
+  }
+  #chatInput:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,212,170,0.1); }
+  #chatInput::placeholder { color:var(--text3); }
+  .send-btn {
+    width:42px; height:42px; border-radius:10px; background:var(--accent);
+    border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:all 0.15s; flex-shrink:0;
+  }
+  .send-btn:hover { background:#00f0c0; transform:translateY(-1px); }
+  .send-btn svg { width:18px; height:18px; color:#000; }
+  .chat-suggestions { display:flex; gap:6px; padding:0 20px 12px; flex-wrap:wrap; }
+  .sugg-chip {
+    background:var(--bg3); border:1px solid var(--border2); border-radius:20px;
+    padding:5px 12px; font-size:11px; color:var(--text2); cursor:pointer; transition:all 0.15s;
+  }
+  .sugg-chip:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* STATS */
+  #stats { flex-direction:column; overflow:auto; padding:24px; gap:20px; }
+  .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .stat-card {
+    background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:18px;
+  }
+  .stat-card h3 { font-size:12px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; }
+  .stat-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+  .stat-row:last-child { border-bottom:none; margin-bottom:0; padding-bottom:0; }
+  .stat-key { font-size:12px; color:var(--text2); }
+  .stat-val { font-family:var(--font-code); font-size:12px; color:var(--accent); font-weight:500; }
+
+  /* PYTHON CONSOLE */
+  #pyconsole { flex-direction:column; overflow:hidden; }
+  .console-split { display:flex; flex:1; overflow:hidden; }
+  .code-editor-wrap { flex:1; display:flex; flex-direction:column; border-right:1px solid var(--border); }
+  .code-textarea {
+    flex:1; background:var(--bg); border:none; outline:none; resize:none;
+    font-family:var(--font-code); font-size:13px; color:var(--text);
+    padding:16px; line-height:1.7;
+  }
+  .output-wrap { width:340px; display:flex; flex-direction:column; background:var(--bg); }
+  .output-content {
+    flex:1; overflow-y:auto; padding:16px;
+    font-family:var(--font-code); font-size:12px; color:var(--accent); line-height:1.8;
+    white-space:pre-wrap;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+
+  /* TOAST */
+  .toast {
+    position:fixed; bottom:20px; right:20px; background:var(--bg2); border:1px solid var(--border2);
+    border-radius:10px; padding:12px 18px; font-size:13px; color:var(--text);
+    animation:fadeInUp 0.3s; z-index:1000; max-width:300px;
+  }
+  @keyframes fadeInUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+  /* Responsive */
+  @media(max-width:900px) {
+    .kpi-grid { grid-template-columns:repeat(2,1fr); }
+    .chart-grid { grid-template-columns:1fr; }
+    .viz-area { grid-template-columns:1fr; }
+    .sql-schema-pane { display:none; }
+    .stats-grid { grid-template-columns:1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="logo-text">Data<span>Mind</span></div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Análisis</div>
+      <div class="nav-item active" onclick="switchPanel('dashboard',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" onclick="switchPanel('datatable',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+        Tabla de Datos
+      </div>
+      <div class="nav-item" onclick="switchPanel('stats',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Estadísticas
+      </div>
+      <div class="nav-item" onclick="switchPanel('visualization',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 16l4-8 4 8"/><path d="M11 12h2"/></svg>
+        Visualización
+        <span class="nav-badge">NEW</span>
+      </div>
+
+      <div class="nav-section-label">Código</div>
+      <div class="nav-item" onclick="switchPanel('sqleditor',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        Editor SQL
+      </div>
+      <div class="nav-item" onclick="switchPanel('pyconsole',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Consola Python/R
+      </div>
+
+      <div class="nav-section-label">IA</div>
+      <div class="nav-item" onclick="switchPanel('chatbot',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Chat Analista IA
+        <span class="nav-badge" style="background:var(--accent);color:#000;">IA</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-files">
+      <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:block;margin:0 auto 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <p>Arrastra archivos o <span>haz clic</span><br><small style="color:var(--text3)">.xlsx .csv .json .pdf .docx .doc</small></p>
+      </div>
+      <input type="file" id="fileInput" multiple accept=".xlsx,.xls,.csv,.json,.pdf,.docx,.doc,.txt" onchange="handleFiles(this.files)">
+      <div class="file-list" id="fileList"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-tabs">
+        <button class="tab-btn active" id="tabMain" onclick="setMode('main',this)">Análisis Principal</button>
+        <button class="tab-btn" onclick="setMode('report',this)">Informe</button>
+        <button class="tab-btn" onclick="exportData()">Exportar</button>
+      </div>
+      <div class="topbar-right">
+        <div class="status-dot"></div>
+        <div class="status-text" id="statusText">Listo — sin datos cargados</div>
+      </div>
+    </div>
+
+    <!-- PANELS -->
+    <div id="dashboard" class="panel active">
+      <div style="padding:24px;display:flex;flex-direction:column;gap:20px;overflow:auto;flex:1">
+        <div class="dash-header">
+          <div>
+            <div class="dash-title">Panel de <span>Análisis</span></div>
+            <div class="dash-subtitle" id="dashSubtitle">Carga un archivo para comenzar el análisis automático</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="dt-btn primary" onclick="runAutoAnalysis()">⚡ Análisis Auto</button>
+            <button class="dt-btn" onclick="switchPanel('chatbot', document.querySelectorAll('.nav-item')[7])">💬 Preguntar a IA</button>
+          </div>
+        </div>
+
+        <div class="kpi-grid" id="kpiGrid">
+          <div class="kpi-card k1"><div class="kpi-label">Total Filas</div><div class="kpi-value" id="kpi1">—</div><div class="kpi-change">Sin datos</div></div>
+          <div class="kpi-card k2"><div class="kpi-label">Columnas</div><div class="kpi-value" id="kpi2">—</div><div class="kpi-change">Sin datos</div></div>
+          <div class="kpi-card k3"><div class="kpi-label">Valores Nulos</div><div class="kpi-value" id="kpi3">—</div><div class="kpi-change">Sin datos</div></div>
+          <div class="kpi-card k4"><div class="kpi-label">Columnas Numéricas</div><div class="kpi-value" id="kpi4">—</div><div class="kpi-change">Sin datos</div></div>
+        </div>
+
+        <div class="chart-grid">
+          <div class="chart-card">
+            <div class="chart-title">Distribución de Datos</div>
+            <div class="chart-sub">Selecciona columnas para visualizar</div>
+            <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Tipos de Columnas</div>
+            <div class="chart-sub">Distribución por tipo de dato</div>
+            <div class="chart-wrap"><canvas id="typeChart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-title">Correlación Numérica</div>
+          <div class="chart-sub">Relación entre variables cuantitativas</div>
+          <div class="chart-wrap" style="height:180px"><canvas id="corrChart"></canvas></div>
+        </div>
+
+        <div id="insightCards" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+    </div>
+
+    <div id="datatable" class="panel">
+      <div class="dt-toolbar">
+        <input class="dt-search" id="tableSearch" placeholder="🔍 Buscar en datos..." oninput="filterTable(this.value)">
+        <button class="dt-btn" onclick="sortTable()">↕ Ordenar</button>
+        <button class="dt-btn primary" onclick="downloadCSV()">⬇ CSV</button>
+        <div class="dt-info" id="tableInfo">Sin datos</div>
+      </div>
+      <div class="table-wrap"><table id="dataTable"><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table></div>
+    </div>
+
+    <div id="stats" class="panel">
+      <div style="padding:24px;display:flex;flex-direction:column;gap:20px;overflow:auto;flex:1">
+        <div><div class="dash-title">Estadísticas <span>Descriptivas</span></div><div class="dash-subtitle">Análisis estadístico completo de todas las variables</div></div>
+        <div class="stats-grid" id="statsGrid"><div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3)">Carga un dataset para ver estadísticas</div></div>
+        <div id="distCharts" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div>
+      </div>
+    </div>
+
+    <div id="visualization" class="panel">
+      <div class="viz-toolbar">
+        <select class="viz-select" id="chartTypeSelect" onchange="updateVizChart()">
+          <option value="bar">Barras</option>
+          <option value="line">Línea</option>
+          <option value="scatter">Dispersión</option>
+          <option value="pie">Pastel</option>
+          <option value="doughnut">Dona</option>
+          <option value="radar">Radar</option>
+          <option value="polarArea">Área Polar</option>
+          <option value="bubble">Burbuja</option>
+        </select>
+        <select class="viz-select" id="xAxisSelect" onchange="updateVizChart()"><option>— Eje X —</option></select>
+        <select class="viz-select" id="yAxisSelect" onchange="updateVizChart()"><option>— Eje Y —</option></select>
+        <select class="viz-select" id="colorBySelect" onchange="updateVizChart()"><option>— Color por —</option></select>
+        <button class="dt-btn primary" onclick="downloadChart()">⬇ PNG</button>
+      </div>
+      <div class="viz-area">
+        <div class="viz-chart-wrap">
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative">
+            <canvas id="vizChart"></canvas>
+          </div>
+        </div>
+        <div class="viz-config">
+          <div class="config-group">
+            <div class="config-label">Título del gráfico</div>
+            <input class="config-input" id="chartTitle" placeholder="Mi gráfico..." oninput="updateVizChart()">
+          </div>
+          <div class="config-group">
+            <div class="config-label">Paleta de colores</div>
+            <select class="viz-select" id="colorPalette" style="width:100%" onchange="updateVizChart()">
+              <option value="teal">Teal (defecto)</option>
+              <option value="purple">Púrpura</option>
+              <option value="warm">Cálida</option>
+              <option value="cold">Fría</option>
+              <option value="rainbow">Arco iris</option>
+            </select>
+          </div>
+          <div class="config-group">
+            <div class="config-label">Agregación</div>
+            <select class="viz-select" id="aggFunc" style="width:100%" onchange="updateVizChart()">
+              <option value="sum">Suma</option>
+              <option value="mean">Media</option>
+              <option value="count">Conteo</option>
+              <option value="max">Máximo</option>
+              <option value="min">Mínimo</option>
+            </select>
+          </div>
+          <div style="margin-top:20px;padding:14px;background:var(--bg3);border-radius:10px;border:1px solid var(--border)">
+            <div class="config-label" style="margin-bottom:8px">Estadísticas del gráfico</div>
+            <div id="vizStats" style="font-size:12px;color:var(--text2);line-height:2">Selecciona datos para ver estadísticas</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="sqleditor" class="panel">
+      <div class="sql-top">
+        <div class="sql-editor-pane">
+          <div class="sql-pane-header">
+            <div class="pane-title">SQL Editor</div>
+            <button class="run-btn" onclick="runSQL()">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Ejecutar
+            </button>
+            <button class="dt-btn" onclick="formatSQL()">⬡ Formatear</button>
+            <button class="dt-btn" onclick="clearSQL()">✕ Limpiar</button>
+          </div>
+          <textarea id="sqlTextarea" spellcheck="false" placeholder="-- Escribe tu consulta SQL aquí
+-- Los datos cargados están disponibles como tablas
+-- Ejemplo:
+SELECT * FROM datos LIMIT 10;
+SELECT columna, COUNT(*) as total FROM datos GROUP BY columna ORDER BY total DESC;"></textarea>
+        </div>
+        <div class="sql-schema-pane">
+          <div class="sql-pane-header"><div class="pane-title">Esquema</div></div>
+          <div class="schema-list" id="schemaList"><div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Carga datos para ver el esquema</div></div>
+        </div>
+      </div>
+      <div class="sql-results">
+        <div class="sql-pane-header">
+          <div class="pane-title">Resultados</div>
+          <div id="sqlStatus" style="font-size:11px;color:var(--text3)">Sin ejecución</div>
+          <button class="dt-btn primary" onclick="exportSQLResults()" style="margin-left:auto">⬇ Exportar</button>
+        </div>
+        <div class="table-wrap"><table><thead id="sqlHead"></thead><tbody id="sqlBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <div id="pyconsole" class="panel">
+      <div class="sql-pane-header">
+        <div class="pane-title">Simulador Python / R</div>
+        <select class="viz-select" id="langSelect" style="width:120px">
+          <option value="python">Python</option>
+          <option value="r">R</option>
+        </select>
+        <button class="run-btn" onclick="runCode()">▶ Ejecutar</button>
+        <button class="dt-btn" onclick="loadTemplate()">📋 Plantilla</button>
+        <button class="dt-btn" onclick="clearConsole()">✕ Limpiar</button>
+      </div>
+      <div class="console-split">
+        <div class="code-editor-wrap">
+          <textarea class="code-textarea" id="codeTextarea" spellcheck="false" placeholder="# Escribe código Python o R aquí
+# Accede a los datos con: df (pandas DataFrame)
+# Ejemplo Python:
+import statistics
+print('Media:', statistics.mean([1,2,3,4,5]))
+print('Filas de datos:', len(df) if 'df' in dir() else 'Sin datos')
+
+# Cálculos estadísticos con los datos cargados
+# Para análisis de regresión, clustering, etc."></textarea>
+        </div>
+        <div class="output-wrap">
+          <div class="sql-pane-header"><div class="pane-title">Output</div></div>
+          <div class="output-content" id="codeOutput"># Salida del código aparecerá aquí...</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chatbot" class="panel">
+      <div class="chat-messages" id="chatMessages">
+        <div class="msg ai">
+          <div class="msg-avatar">🧠</div>
+          <div class="msg-content">
+            ¡Hola! Soy tu <strong>Analista de Datos IA</strong>. Puedo ayudarte con:
+            <div class="insight-card">
+              <h4>🔍 Capacidades disponibles</h4>
+              <ul>
+                <li>Análisis exploratorio de datos (EDA)</li>
+                <li>Estadísticas descriptivas e inferenciales</li>
+                <li>Generación de consultas SQL</li>
+                <li>Código Python/R para análisis</li>
+                <li>Interpretación de gráficos y tendencias</li>
+                <li>Detección de anomalías y patrones</li>
+                <li>Recomendaciones de visualización</li>
+              </ul>
+            </div>
+            Carga un archivo y pregúntame lo que necesites sobre tus datos.
+          </div>
+        </div>
+      </div>
+      <div class="chat-suggestions" id="chatSuggestions">
+        <div class="sugg-chip" onclick="sendSuggestion('Analiza mis datos y dame un resumen ejecutivo')">📊 Resumen ejecutivo</div>
+        <div class="sugg-chip" onclick="sendSuggestion('¿Qué columnas tienen valores nulos y cómo los trato?')">🔧 Valores nulos</div>
+        <div class="sugg-chip" onclick="sendSuggestion('Genera una consulta SQL para agrupar y resumir los datos')">🗃️ Generar SQL</div>
+        <div class="sugg-chip" onclick="sendSuggestion('¿Qué tipo de gráfico recomiendas para estos datos?')">📈 Recomendación visual</div>
+        <div class="sugg-chip" onclick="sendSuggestion('Escribe código Python para análisis de regresión')">🐍 Código Python</div>
+        <div class="sugg-chip" onclick="sendSuggestion('Detecta outliers y anomalías en los datos')">⚠️ Anomalías</div>
+      </div>
+      <div class="chat-input-wrap">
+        <textarea id="chatInput" placeholder="Pregunta sobre tus datos..." rows="1" onkeydown="chatKeydown(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" onclick="sendChat()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let datasets = {};
+let activeDataset = null;
+let allData = [];
+let columns = [];
+let mainChart = null, typeChart = null, corrChart = null, vizChart = null;
+let chatHistory = [];
+let sqlResults = [];
+let sortState = { col: null, dir: 'asc' };
+let filteredData = [];
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function switchPanel(id, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (el) el.classList.add('active');
+}
+
+function setMode(mode, el) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ============================================================
+// FILE HANDLING
+// ============================================================
+function handleFiles(files) {
+  Array.from(files).forEach(file => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const reader = new FileReader();
+
+    if (['xlsx','xls'].includes(ext)) {
+      reader.onload = e => {
+        try {
+          const wb = XLSX.read(e.target.result, {type:'binary'});
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const data = XLSX.utils.sheet_to_json(ws, {defval:''});
+          registerDataset(file.name, data, ext);
+        } catch(err) { showToast('Error leyendo Excel: ' + err.message); }
+      };
+      reader.readAsBinaryString(file);
+    } else if (ext === 'csv') {
+      reader.onload = e => {
+        const result = Papa.parse(e.target.result, {header:true, skipEmptyLines:true, dynamicTyping:true});
+        registerDataset(file.name, result.data, ext);
+      };
+      reader.readAsText(file);
+    } else if (ext === 'json') {
+      reader.onload = e => {
+        try {
+          let data = JSON.parse(e.target.result);
+          if (!Array.isArray(data)) data = [data];
+          registerDataset(file.name, data, ext);
+        } catch(err) { showToast('JSON inválido'); }
+      };
+      reader.readAsText(file);
+    } else if (['pdf','docx','doc','txt'].includes(ext)) {
+      reader.onload = e => {
+        const text = ext === 'txt' ? e.target.result : '[Contenido de ' + file.name + ' - análisis de texto disponible via IA]';
+        registerTextDataset(file.name, text, ext);
+      };
+      reader.readAsText(file);
+    }
+  });
+}
+
+function registerDataset(name, data, ext) {
+  datasets[name] = { data, ext, loaded: Date.now() };
+  activeDataset = name;
+  allData = data;
+  filteredData = [...data];
+  columns = data.length > 0 ? Object.keys(data[0]) : [];
+  updateAll();
+  addFileToList(name, ext, data.length);
+  showToast(`✓ ${name} cargado — ${data.length} filas`);
+}
+
+function registerTextDataset(name, text, ext) {
+  datasets[name] = { text, ext, loaded: Date.now(), isText: true };
+  addFileToList(name, ext, 0);
+  showToast(`✓ ${name} — disponible para análisis IA`);
+  const chatMsg = `He cargado el archivo "${name}". Tipo: ${ext.toUpperCase()}. ${text.substring(0,200)}...`;
+  addChatMessage('system', chatMsg);
+}
+
+function addFileToList(name, ext, rows) {
+  const list = document.getElementById('fileList');
+  const item = document.createElement('div');
+  item.className = 'file-item';
+  item.onclick = () => {
+    if (datasets[name] && !datasets[name].isText) {
+      activeDataset = name;
+      allData = datasets[name].data;
+      filteredData = [...allData];
+      columns = allData.length > 0 ? Object.keys(allData[0]) : [];
+      document.querySelectorAll('.file-item').forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+      updateAll();
+    }
+  };
+  const iconClass = ['xlsx','xls'].includes(ext) ? 'xlsx' : ext;
+  const labels = {xlsx:'XLS',csv:'CSV',pdf:'PDF',docx:'DOC',doc:'DOC',json:'JSON',txt:'TXT'};
+  item.innerHTML = `
+    <div class="file-icon ${iconClass}">${labels[ext]||ext.toUpperCase()}</div>
+    <div class="file-name">${name}</div>
+    <div class="file-size">${rows ? rows+'r' : ''}</div>`;
+  list.appendChild(item);
+  item.classList.add('selected');
+}
+
+// ============================================================
+// UPDATE ALL
+// ============================================================
+function updateAll() {
+  updateKPIs();
+  updateTableView();
+  updateStats();
+  updateSchemaView();
+  updateVizSelects();
+  updateDashCharts();
+  document.getElementById('dashSubtitle').textContent = `Dataset: ${activeDataset} — ${allData.length} filas × ${columns.length} columnas`;
+  document.getElementById('statusText').textContent = `${activeDataset} — ${allData.length} filas`;
+}
+
+// ============================================================
+// KPIs
+// ============================================================
+function updateKPIs() {
+  document.getElementById('kpi1').textContent = allData.length.toLocaleString();
+  document.getElementById('kpi2').textContent = columns.length;
+  const nulls = countNulls();
+  document.getElementById('kpi3').textContent = nulls;
+  const numCols = getNumericColumns().length;
+  document.getElementById('kpi4').textContent = numCols;
+}
+
+function countNulls() {
+  let n = 0;
+  allData.forEach(row => columns.forEach(c => { if (row[c] === '' || row[c] === null || row[c] === undefined) n++; }));
+  return n;
+}
+
+function getNumericColumns() {
+  return columns.filter(c => {
+    const vals = allData.slice(0,50).map(r => r[c]).filter(v => v !== '' && v !== null);
+    return vals.length > 0 && vals.every(v => !isNaN(parseFloat(v)));
+  });
+}
+
+function getCategoryColumns() {
+  return columns.filter(c => !getNumericColumns().includes(c));
+}
+
+// ============================================================
+// DASHBOARD CHARTS
+// ============================================================
+function updateDashCharts() {
+  if (!allData.length) return;
+  const numCols = getNumericColumns();
+  const catCols = getCategoryColumns();
+
+  // Main chart — first numeric col distribution
+  if (mainChart) mainChart.destroy();
+  const ctx1 = document.getElementById('mainChart').getContext('2d');
+  if (numCols.length) {
+    const col = numCols[0];
+    const vals = allData.map(r => parseFloat(r[col])).filter(v => !isNaN(v));
+    const bins = createHistogram(vals, 10);
+    mainChart = new Chart(ctx1, {
+      type:'bar',
+      data:{
+        labels: bins.map(b => b.label),
+        datasets:[{data: bins.map(b => b.count), backgroundColor:'rgba(0,212,170,0.6)', borderColor:'rgba(0,212,170,1)', borderWidth:1}]
+      },
+      options: darkChartOptions('Distribución: ' + col)
+    });
+  } else if (catCols.length) {
+    const col = catCols[0];
+    const counts = groupCount(col);
+    const top10 = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    mainChart = new Chart(ctx1, {
+      type:'bar',
+      data:{labels:top10.map(e=>e[0]), datasets:[{data:top10.map(e=>e[1]),backgroundColor:'rgba(124,92,252,0.6)',borderColor:'rgba(124,92,252,1)',borderWidth:1}]},
+      options: darkChartOptions('Conteo: ' + col)
+    });
+  }
+
+  // Type chart — pie
+  if (typeChart) typeChart.destroy();
+  const ctx2 = document.getElementById('typeChart').getContext('2d');
+  const nNum = numCols.length;
+  const nCat = catCols.length;
+  typeChart = new Chart(ctx2, {
+    type:'doughnut',
+    data:{
+      labels:['Numéricas','Categóricas'],
+      datasets:[{data:[nNum,nCat],backgroundColor:['rgba(0,212,170,0.7)','rgba(124,92,252,0.7)'],borderWidth:0}]
+    },
+    options:{...darkChartOptions(),plugins:{legend:{labels:{color:'#8b90a7',font:{size:11}}}}}
+  });
+
+  // Correlation chart
+  if (corrChart) corrChart.destroy();
+  if (numCols.length >= 2) {
+    const ctx3 = document.getElementById('corrChart').getContext('2d');
+    const pairs = numCols.slice(0,5);
+    const corrs = pairs.map((c,i) => pairs.slice(i+1).map(c2 => ({x:c,y:c2,r:pearsonCorr(allData,c,c2)}))).flat();
+    corrChart = new Chart(ctx3, {
+      type:'bar',
+      data:{
+        labels: corrs.map(c => `${c.x}×${c.y}`),
+        datasets:[{
+          data: corrs.map(c => c.r),
+          backgroundColor: corrs.map(c => c.r > 0 ? 'rgba(0,212,170,0.6)' : 'rgba(255,107,107,0.6)'),
+          borderWidth:1
+        }]
+      },
+      options: darkChartOptions('Correlaciones')
+    });
+  }
+
+  // Insight cards
+  generateInsights();
+}
+
+function createHistogram(vals, bins) {
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const step = (max - min) / bins;
+  return Array.from({length:bins}, (_,i) => {
+    const lo = min + i*step, hi = lo + step;
+    return { label: lo.toFixed(1), count: vals.filter(v => v >= lo && v < hi).length };
+  });
+}
+
+function groupCount(col) {
+  const counts = {};
+  allData.forEach(row => { const v = String(row[col]||''); counts[v] = (counts[v]||0)+1; });
+  return counts;
+}
+
+function pearsonCorr(data, cx, cy) {
+  const xs = data.map(r => parseFloat(r[cx])).filter(v => !isNaN(v));
+  const ys = data.map(r => parseFloat(r[cy])).filter(v => !isNaN(v));
+  const n = Math.min(xs.length, ys.length);
+  if (n < 2) return 0;
+  const mx = xs.reduce((a,b)=>a+b,0)/n, my = ys.reduce((a,b)=>a+b,0)/n;
+  const num = xs.reduce((s,x,i)=>s+(x-mx)*(ys[i]-my),0);
+  const denom = Math.sqrt(xs.reduce((s,x)=>s+(x-mx)**2,0)*ys.reduce((s,y)=>s+(y-my)**2,0));
+  return denom ? num/denom : 0;
+}
+
+function darkChartOptions(title='') {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{display:false},
+      title:{display:!!title, text:title, color:'#8b90a7', font:{size:12,weight:'normal'}}
+    },
+    scales:{
+      x:{ticks:{color:'#555a72',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'}},
+      y:{ticks:{color:'#555a72',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'}}
+    }
+  };
+}
+
+function generateInsights() {
+  const container = document.getElementById('insightCards');
+  container.innerHTML = '';
+  const insights = [];
+  const numCols = getNumericColumns();
+  const nulls = countNulls();
+  const total = allData.length * columns.length;
+
+  if (nulls > 0) insights.push(`⚠️ Se detectaron <strong>${nulls}</strong> valores nulos (${((nulls/total)*100).toFixed(1)}% del dataset)`);
+  if (numCols.length) {
+    const col = numCols[0];
+    const vals = allData.map(r => parseFloat(r[col])).filter(v => !isNaN(v));
+    const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+    const std = Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/vals.length);
+    const outliers = vals.filter(v => Math.abs(v-mean) > 3*std).length;
+    if (outliers) insights.push(`📊 ${col}: ${outliers} outliers detectados (>3σ de la media)`);
+    insights.push(`📈 ${col}: Media=${mean.toFixed(2)}, Desv.Std=${std.toFixed(2)}`);
+  }
+  if (allData.length > 10000) insights.push(`🗃️ Dataset grande (${allData.length.toLocaleString()} filas) — considera muestreo para visualizaciones`);
+  if (numCols.length >= 2) {
+    const c = pearsonCorr(allData, numCols[0], numCols[1]);
+    if (Math.abs(c) > 0.7) insights.push(`🔗 Correlación fuerte entre ${numCols[0]} y ${numCols[1]}: r=${c.toFixed(3)}`);
+  }
+
+  if (insights.length) {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--bg2);border:1px solid rgba(124,92,252,0.3);border-radius:12px;padding:18px';
+    card.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--accent2);margin-bottom:12px">🧠 Insights Automáticos</div>
+      ${insights.map(i=>`<div style="font-size:13px;color:var(--text2);margin-bottom:8px;padding:8px 12px;background:var(--bg3);border-radius:7px">${i}</div>`).join('')}`;
+    container.appendChild(card);
+  }
+}
+
+// ============================================================
+// TABLE
+// ============================================================
+function updateTableView() {
+  renderTable(filteredData);
+  document.getElementById('tableInfo').textContent = `${filteredData.length} de ${allData.length} filas`;
+}
+
+function renderTable(data) {
+  const head = document.getElementById('tableHead');
+  const body = document.getElementById('tableBody');
+  if (!data.length || !columns.length) {
+    head.innerHTML = ''; body.innerHTML = '<tr><td colspan="10" style="padding:40px;text-align:center;color:var(--text3)">Sin datos cargados</td></tr>';
+    return;
+  }
+  head.innerHTML = '<tr>' + columns.map((c,i) =>
+    `<th onclick="sortByCol(${i})" class="${sortState.col===i?'sorted':''}">${c} ${sortState.col===i?(sortState.dir==='asc'?'↑':'↓'):''}</th>`
+  ).join('') + '</tr>';
+  const numCols = new Set(getNumericColumns());
+  body.innerHTML = data.slice(0,500).map(row =>
+    '<tr>' + columns.map(c => {
+      const v = row[c];
+      if (v === '' || v === null || v === undefined) return `<td class="cell-null">null</td>`;
+      if (numCols.has(c)) return `<td class="cell-num">${typeof v === 'number' ? v.toLocaleString() : v}</td>`;
+      return `<td>${String(v).substring(0,60)}</td>`;
+    }).join('') + '</tr>'
+  ).join('');
+}
+
+function filterTable(query) {
+  if (!query) { filteredData = [...allData]; }
+  else {
+    const q = query.toLowerCase();
+    filteredData = allData.filter(row => columns.some(c => String(row[c]||'').toLowerCase().includes(q)));
+  }
+  renderTable(filteredData);
+  document.getElementById('tableInfo').textContent = `${filteredData.length} de ${allData.length} filas`;
+}
+
+function sortByCol(idx) {
+  const col = columns[idx];
+  if (sortState.col === idx) sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+  else { sortState.col = idx; sortState.dir = 'asc'; }
+  filteredData.sort((a,b) => {
+    const va = a[col], vb = b[col];
+    const na = parseFloat(va), nb = parseFloat(vb);
+    if (!isNaN(na) && !isNaN(nb)) return sortState.dir === 'asc' ? na-nb : nb-na;
+    return sortState.dir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+  });
+  renderTable(filteredData);
+}
+
+function downloadCSV() {
+  if (!filteredData.length) return showToast('Sin datos para exportar');
+  const csv = Papa.unparse(filteredData);
+  downloadText(csv, 'export.csv', 'text/csv');
+}
+
+// ============================================================
+// STATISTICS
+// ============================================================
+function updateStats() {
+  const grid = document.getElementById('statsGrid');
+  const numCols = getNumericColumns();
+  if (!numCols.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3)">No hay columnas numéricas para analizar</div>';
+    return;
+  }
+  grid.innerHTML = numCols.slice(0,9).map(col => {
+    const vals = allData.map(r => parseFloat(r[col])).filter(v => !isNaN(v)).sort((a,b)=>a-b);
+    if (!vals.length) return '';
+    const n = vals.length;
+    const mean = vals.reduce((a,b)=>a+b,0)/n;
+    const std = Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/n);
+    const med = n%2 ? vals[Math.floor(n/2)] : (vals[n/2-1]+vals[n/2])/2;
+    const q1 = vals[Math.floor(n*0.25)], q3 = vals[Math.floor(n*0.75)];
+    return `<div class="stat-card">
+      <h3>${col}</h3>
+      ${statRow('N',n)}${statRow('Media',mean.toFixed(4))}${statRow('Mediana',med.toFixed(4))}
+      ${statRow('Desv.Std',std.toFixed(4))}${statRow('Mín',vals[0].toFixed(4))}${statRow('Máx',vals[n-1].toFixed(4))}
+      ${statRow('Q1',q1.toFixed(4))}${statRow('Q3',q3.toFixed(4))}${statRow('IQR',(q3-q1).toFixed(4))}
+      ${statRow('Curtosis',kurtosis(vals,mean,std).toFixed(4))}${statRow('Asimetría',skewness(vals,mean,std).toFixed(4))}
+    </div>`;
+  }).join('');
+}
+
+function statRow(k, v) {
+  return `<div class="stat-row"><span class="stat-key">${k}</span><span class="stat-val">${v}</span></div>`;
+}
+
+function skewness(vals, mean, std) {
+  const n = vals.length;
+  return (vals.reduce((s,v)=>s+((v-mean)/std)**3,0)/n);
+}
+function kurtosis(vals, mean, std) {
+  const n = vals.length;
+  return (vals.reduce((s,v)=>s+((v-mean)/std)**4,0)/n) - 3;
+}
+
+// ============================================================
+// SCHEMA VIEW
+// ============================================================
+function updateSchemaView() {
+  const sl = document.getElementById('schemaList');
+  if (!columns.length) return;
+  const numCols = new Set(getNumericColumns());
+  const tableName = activeDataset ? activeDataset.replace(/\.[^.]+$/,'').replace(/[^a-z0-9_]/gi,'_') : 'datos';
+  sl.innerHTML = `<div class="schema-table">
+    <div class="schema-table-name" onclick="insertTableName('${tableName}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      ${tableName}
+    </div>
+    ${columns.map(c => `<div class="schema-col"><span>${c}</span><span class="schema-type">${numCols.has(c)?'NUM':'TEXT'}</span></div>`).join('')}
+  </div>`;
+}
+
+function insertTableName(name) {
+  const ta = document.getElementById('sqlTextarea');
+  ta.value += `\nSELECT * FROM ${name} LIMIT 10;`;
+  ta.focus();
+}
+
+// ============================================================
+// SQL ENGINE (simple in-memory)
+// ============================================================
+function runSQL() {
+  const sql = document.getElementById('sqlTextarea').value.trim();
+  if (!sql) return;
+  const t0 = Date.now();
+  try {
+    const result = executeSQL(sql);
+    sqlResults = result.rows;
+    renderSQLResults(result.cols, result.rows);
+    document.getElementById('sqlStatus').textContent = `✓ ${result.rows.length} filas — ${Date.now()-t0}ms`;
+  } catch(e) {
+    document.getElementById('sqlHead').innerHTML = '';
+    document.getElementById('sqlBody').innerHTML = `<tr><td style="padding:12px;color:var(--accent3)">${e.message}</td></tr>`;
+    document.getElementById('sqlStatus').textContent = '✗ Error';
+  }
+}
+
+function executeSQL(sql) {
+  // Simple SQL parser for SELECT queries
+  const upper = sql.toUpperCase().trim();
+  if (!upper.startsWith('SELECT')) throw new Error('Solo se soportan consultas SELECT');
+
+  let data = [...allData];
+  const tableName = activeDataset ? activeDataset.replace(/\.[^.]+$/,'').replace(/[^a-z0-9_]/gi,'_').toLowerCase() : 'datos';
+
+  // FROM
+  const fromMatch = sql.match(/FROM\s+(\w+)/i);
+  // WHERE
+  const whereMatch = sql.match(/WHERE\s+(.+?)(?:GROUP BY|ORDER BY|LIMIT|HAVING|$)/is);
+  // GROUP BY
+  const groupMatch = sql.match(/GROUP\s+BY\s+(.+?)(?:ORDER BY|LIMIT|HAVING|$)/is);
+  // ORDER BY
+  const orderMatch = sql.match(/ORDER\s+BY\s+(.+?)(?:LIMIT|$)/is);
+  // LIMIT
+  const limitMatch = sql.match(/LIMIT\s+(\d+)/i);
+  // SELECT cols
+  const selectMatch = sql.match(/SELECT\s+(.+?)\s+FROM/is);
+
+  // WHERE filter
+  if (whereMatch) {
+    const cond = whereMatch[1].trim();
+    data = applyWhere(data, cond);
+  }
+
+  // GROUP BY
+  let cols = columns;
+  let result = data;
+  if (groupMatch) {
+    const groupCols = groupMatch[1].split(',').map(s => s.trim());
+    const selectPart = selectMatch ? selectMatch[1] : '*';
+    const aggs = parseAggregations(selectPart);
+    result = applyGroupBy(data, groupCols, aggs);
+    cols = Object.keys(result[0] || {});
+  } else {
+    // SELECT cols
+    if (selectMatch && selectMatch[1].trim() !== '*') {
+      const selCols = selectMatch[1].split(',').map(s => s.trim()).filter(s => !s.match(/COUNT|SUM|AVG|MIN|MAX/i));
+      if (selCols.length && selCols[0] !== '*') {
+        cols = selCols.filter(c => columns.includes(c));
+        result = result.map(row => { const r = {}; cols.forEach(c => r[c]=row[c]); return r; });
+      }
+    }
+  }
+
+  // ORDER BY
+  if (orderMatch) {
+    const parts = orderMatch[1].trim().split(/\s+/);
+    const col = parts[0]; const dir = (parts[1]||'').toUpperCase() === 'DESC' ? -1 : 1;
+    result = [...result].sort((a,b) => {
+      const va = parseFloat(a[col]), vb = parseFloat(b[col]);
+      if (!isNaN(va)&&!isNaN(vb)) return dir*(va-vb);
+      return dir*String(a[col]||'').localeCompare(String(b[col]||''));
+    });
+  }
+
+  // LIMIT
+  if (limitMatch) result = result.slice(0, parseInt(limitMatch[1]));
+
+  return { cols: Object.keys(result[0]||{}), rows: result };
+}
+
+function applyWhere(data, cond) {
+  // Simple condition parser: col = val, col > val, col < val, col LIKE val
+  return data.filter(row => {
+    try {
+      const c = cond
+        .replace(/(\w+)\s+LIKE\s+'([^']+)'/gi, (m,col,pat) => {
+          const regex = new RegExp(pat.replace(/%/g,'.*').replace(/_/g,'.'), 'i');
+          return String(row[col]||'').match(regex) ? 'true' : 'false';
+        })
+        .replace(/(\w+)\s*(=|!=|>=|<=|>|<)\s*'([^']*)'/gi, (m,col,op,val) => {
+          const v = String(row[col]||'');
+          if (op==='=') return v===val?'true':'false';
+          if (op==='!=') return v!==val?'true':'false';
+          return 'false';
+        })
+        .replace(/(\w+)\s*(=|!=|>=|<=|>|<)\s*(-?\d+\.?\d*)/gi, (m,col,op,val) => {
+          const v = parseFloat(row[col]), n = parseFloat(val);
+          if (isNaN(v)) return 'false';
+          const ops = {'=':v===n,'!=':v!==n,'>=':v>=n,'<=':v<=n,'>':v>n,'<':v<n};
+          return ops[op] ? 'true' : 'false';
+        });
+      return eval(c.replace(/AND/gi,'&&').replace(/OR/gi,'||').replace(/NOT /gi,'!'));
+    } catch { return true; }
+  });
+}
+
+function parseAggregations(select) {
+  const aggs = [];
+  const regex = /(COUNT|SUM|AVG|MIN|MAX)\((\*|\w+)\)(?:\s+AS\s+(\w+))?/gi;
+  let m;
+  while ((m = regex.exec(select))) {
+    aggs.push({ fn: m[1].toUpperCase(), col: m[2], alias: m[3] || `${m[1]}(${m[2]})` });
+  }
+  return aggs;
+}
+
+function applyGroupBy(data, groupCols, aggs) {
+  const groups = {};
+  data.forEach(row => {
+    const key = groupCols.map(c => row[c]).join('|§|');
+    if (!groups[key]) groups[key] = { _key: groupCols.reduce((o,c)=>(o[c]=row[c],o),{}), rows: [] };
+    groups[key].rows.push(row);
+  });
+  return Object.values(groups).map(g => {
+    const r = { ...g._key };
+    aggs.forEach(a => {
+      if (a.fn === 'COUNT') r[a.alias] = g.rows.length;
+      else {
+        const vals = g.rows.map(row => parseFloat(row[a.col])).filter(v => !isNaN(v));
+        if (a.fn === 'SUM') r[a.alias] = vals.reduce((s,v)=>s+v,0);
+        if (a.fn === 'AVG') r[a.alias] = vals.reduce((s,v)=>s+v,0)/vals.length;
+        if (a.fn === 'MIN') r[a.alias] = Math.min(...vals);
+        if (a.fn === 'MAX') r[a.alias] = Math.max(...vals);
+      }
+    });
+    return r;
+  });
+}
+
+function renderSQLResults(cols, rows) {
+  document.getElementById('sqlHead').innerHTML = '<tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr>';
+  document.getElementById('sqlBody').innerHTML = rows.slice(0,200).map(row =>
+    '<tr>' + cols.map(c => `<td>${row[c]===undefined||row[c]===null?'<span class="cell-null">null</span>':row[c]}</td>`).join('') + '</tr>'
+  ).join('');
+}
+
+function formatSQL() {
+  const ta = document.getElementById('sqlTextarea');
+  ta.value = ta.value
+    .replace(/\bSELECT\b/gi,'SELECT').replace(/\bFROM\b/gi,'\nFROM').replace(/\bWHERE\b/gi,'\nWHERE')
+    .replace(/\bGROUP BY\b/gi,'\nGROUP BY').replace(/\bORDER BY\b/gi,'\nORDER BY')
+    .replace(/\bHAVING\b/gi,'\nHAVING').replace(/\bLIMIT\b/gi,'\nLIMIT');
+}
+function clearSQL() { document.getElementById('sqlTextarea').value = ''; document.getElementById('sqlHead').innerHTML=''; document.getElementById('sqlBody').innerHTML=''; }
+function exportSQLResults() {
+  if (!sqlResults.length) return showToast('Sin resultados para exportar');
+  downloadText(Papa.unparse(sqlResults), 'sql_results.csv', 'text/csv');
+}
+
+// ============================================================
+// VISUALIZATION
+// ============================================================
+function updateVizSelects() {
+  const x = document.getElementById('xAxisSelect');
+  const y = document.getElementById('yAxisSelect');
+  const cb = document.getElementById('colorBySelect');
+  [x,y,cb].forEach(s => {
+    s.innerHTML = '<option>— Seleccionar —</option>' + columns.map(c=>`<option value="${c}">${c}</option>`).join('');
+  });
+}
+
+function updateVizChart() {
+  const type = document.getElementById('chartTypeSelect').value;
+  const xCol = document.getElementById('xAxisSelect').value;
+  const yCol = document.getElementById('yAxisSelect').value;
+  const agg = document.getElementById('aggFunc').value;
+  const title = document.getElementById('chartTitle').value || 'Gráfico';
+  const palette = getPalette(document.getElementById('colorPalette').value);
+
+  if (xCol === '— Seleccionar —' && yCol === '— Seleccionar —') return;
+  if (vizChart) vizChart.destroy();
+
+  const ctx = document.getElementById('vizChart').getContext('2d');
+  let labels, values;
+
+  if (xCol !== '— Seleccionar —' && yCol !== '— Seleccionar —') {
+    const grouped = groupBy(xCol, yCol, agg);
+    labels = Object.keys(grouped);
+    values = Object.values(grouped);
+  } else if (xCol !== '— Seleccionar —') {
+    const counts = groupCount(xCol);
+    const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,20);
+    labels = entries.map(e=>e[0]);
+    values = entries.map(e=>e[1]);
+  } else return;
+
+  const isMultiColor = ['pie','doughnut','polarArea'].includes(type);
+  vizChart = new Chart(ctx, {
+    type,
+    data:{
+      labels,
+      datasets:[{
+        data: type==='bubble' ? values.map((v,i)=>({x:i,y:v,r:Math.sqrt(v)+3})) : values,
+        backgroundColor: isMultiColor ? labels.map((_,i)=>palette[i%palette.length]) : palette[0],
+        borderColor: isMultiColor ? labels.map((_,i)=>palette[i%palette.length]) : palette[0],
+        borderWidth:1, fill:false,
+        pointRadius: type==='scatter'?4:undefined
+      }]
+    },
+    options:{
+      ...darkChartOptions(title),
+      plugins:{ ...darkChartOptions(title).plugins, legend:{display:isMultiColor, labels:{color:'#8b90a7',font:{size:11}}} }
+    }
+  });
+
+  // Stats
+  const nums = values.filter(v=>!isNaN(v));
+  const mean = nums.reduce((a,b)=>a+b,0)/nums.length;
+  document.getElementById('vizStats').innerHTML = [
+    `Puntos: ${values.length}`, `Suma: ${nums.reduce((a,b)=>a+b,0).toFixed(2)}`,
+    `Media: ${mean.toFixed(2)}`, `Mín: ${Math.min(...nums).toFixed(2)}`, `Máx: ${Math.max(...nums).toFixed(2)}`
+  ].join('<br>');
+}
+
+function groupBy(xCol, yCol, agg) {
+  const groups = {};
+  allData.forEach(row => {
+    const k = String(row[xCol]||'');
+    if (!groups[k]) groups[k] = [];
+    const v = parseFloat(row[yCol]);
+    if (!isNaN(v)) groups[k].push(v);
+  });
+  return Object.fromEntries(Object.entries(groups).map(([k,vs]) => {
+    let val;
+    if (agg==='sum') val=vs.reduce((a,b)=>a+b,0);
+    else if (agg==='mean') val=vs.reduce((a,b)=>a+b,0)/vs.length;
+    else if (agg==='count') val=vs.length;
+    else if (agg==='max') val=Math.max(...vs);
+    else if (agg==='min') val=Math.min(...vs);
+    return [k, val];
+  }));
+}
+
+function getPalette(name) {
+  const palettes = {
+    teal: ['rgba(0,212,170,0.7)','rgba(0,190,152,0.7)','rgba(0,160,130,0.7)','rgba(0,130,105,0.7)'],
+    purple: ['rgba(124,92,252,0.7)','rgba(100,70,220,0.7)','rgba(80,50,190,0.7)','rgba(60,30,160,0.7)'],
+    warm: ['rgba(255,107,107,0.7)','rgba(255,165,0,0.7)','rgba(255,200,0,0.7)','rgba(255,100,50,0.7)'],
+    cold: ['rgba(0,150,255,0.7)','rgba(0,200,255,0.7)','rgba(50,100,255,0.7)','rgba(100,200,255,0.7)'],
+    rainbow: ['rgba(255,80,80,0.7)','rgba(255,165,0,0.7)','rgba(255,220,0,0.7)','rgba(0,200,100,0.7)','rgba(0,150,255,0.7)','rgba(124,92,252,0.7)','rgba(255,100,200,0.7)']
+  };
+  return palettes[name] || palettes.teal;
+}
+
+function downloadChart() {
+  const canvas = document.getElementById('vizChart');
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = 'grafico.png';
+  a.click();
+}
+
+// ============================================================
+// PYTHON/R CONSOLE (simulation)
+// ============================================================
+function runCode() {
+  const code = document.getElementById('codeTextarea').value;
+  const lang = document.getElementById('langSelect').value;
+  const out = document.getElementById('codeOutput');
+  out.textContent = '';
+
+  if (lang === 'python') {
+    simulatePython(code, out);
+  } else {
+    simulateR(code, out);
+  }
+}
+
+function simulatePython(code, out) {
+  const numCols = getNumericColumns();
+  const lines = code.split('\n');
+  let output = [];
+
+  lines.forEach(line => {
+    const l = line.trim();
+    if (!l || l.startsWith('#')) return;
+
+    if (l.includes('print(')) {
+      const match = l.match(/print\((.+)\)/);
+      if (match) {
+        let expr = match[1].replace(/f?["'](.*)["']/, '$1');
+        // Evaluate common patterns
+        if (l.includes('len(df)')) output.push(String(allData.length));
+        else if (l.includes('df.shape')) output.push(`(${allData.length}, ${columns.length})`);
+        else if (l.includes('df.columns')) output.push(`Index([${columns.map(c=>"'"+c+"'").join(', ')}])`);
+        else if (l.includes('df.dtypes')) output.push(columns.map(c=>`${c}    ${getNumericColumns().includes(c)?'float64':'object'}`).join('\n'));
+        else if (l.includes('df.describe()')) output.push(generateDescribe());
+        else if (l.includes('df.head(')) {
+          const n = parseInt(l.match(/df\.head\((\d+)\)/)?.[1] || 5);
+          output.push(formatDataFrame(allData.slice(0,n)));
+        }
+        else if (l.includes('df.info()')) output.push(`<class 'pandas.core.frame.DataFrame'>\nRangeIndex: ${allData.length} entries\nColumns: ${columns.length} total\n${columns.map((c,i)=>`${i} ${c} ${allData.length} non-null ${getNumericColumns().includes(c)?'float64':'object'}`).join('\n')}`);
+        else if (l.includes('df.isnull().sum()')) output.push(columns.map(c=>`${c}    ${allData.filter(r=>r[c]===''||r[c]===null).length}`).join('\n'));
+        else if (l.includes('statistics.mean(')) {
+          const numMatch = l.match(/statistics\.mean\(\[([^\]]+)\]\)/);
+          if (numMatch) {
+            const nums = numMatch[1].split(',').map(Number);
+            output.push(String(nums.reduce((a,b)=>a+b,0)/nums.length));
+          }
+        }
+        else output.push(expr);
+      }
+    } else if (l.startsWith('import ') || l.startsWith('from ')) {
+      const mod = l.replace('import ','').replace('from ','').split(' ')[0];
+      output.push(`# ✓ Módulo '${mod}' disponible en entorno real`);
+    } else if (l.includes('df.corr()')) {
+      output.push(generateCorrelationMatrix());
+    }
+  });
+
+  out.textContent = output.join('\n') || '# Sin salida generada';
+}
+
+function simulateR(code, out) {
+  const lines = code.split('\n');
+  let output = [];
+  const numCols = getNumericColumns();
+
+  lines.forEach(line => {
+    const l = line.trim();
+    if (!l || l.startsWith('#')) return;
+    if (l.includes('summary(df)')) output.push(generateRSummary());
+    else if (l.includes('nrow(df)')) output.push(String(allData.length));
+    else if (l.includes('ncol(df)')) output.push(String(columns.length));
+    else if (l.includes('names(df)')) output.push('[1] ' + columns.map(c=>`"${c}"`).join(' '));
+    else if (l.includes('str(df)')) output.push(`'data.frame': ${allData.length} obs. of ${columns.length} variables:\n${columns.slice(0,10).map(c=>`$ ${c}: ${getNumericColumns().includes(c)?'num':'chr'}`).join('\n')}`);
+    else if (l.includes('print(')) output.push(l.replace(/print\((.+)\)/,'$1').replace(/["']/g,''));
+    else if (l.includes('library(')) output.push(`# ✓ Paquete disponible en entorno R real`);
+  });
+
+  out.textContent = output.join('\n') || '# Sin salida generada';
+}
+
+function generateDescribe() {
+  const numCols = getNumericColumns().slice(0,5);
+  const stats = ['count','mean','std','min','25%','50%','75%','max'];
+  const rows = numCols.map(c => {
+    const vals = allData.map(r=>parseFloat(r[c])).filter(v=>!isNaN(v)).sort((a,b)=>a-b);
+    const n=vals.length, m=vals.reduce((a,b)=>a+b,0)/n;
+    const s=Math.sqrt(vals.reduce((s,v)=>s+(v-m)**2,0)/n);
+    return [n,m.toFixed(2),s.toFixed(2),vals[0].toFixed(2),(vals[Math.floor(n*.25)]||0).toFixed(2),(vals[Math.floor(n*.5)]||0).toFixed(2),(vals[Math.floor(n*.75)]||0).toFixed(2),vals[n-1].toFixed(2)];
+  });
+  return '         ' + numCols.join('       ') + '\n' + stats.map((s,i)=>`${s.padEnd(8)} ${rows.map(r=>r[i].padStart(8)).join(' ')}`).join('\n');
+}
+
+function generateCorrelationMatrix() {
+  const numCols = getNumericColumns().slice(0,5);
+  let out = '         ' + numCols.map(c=>c.substring(0,8).padStart(10)).join('') + '\n';
+  numCols.forEach(c1 => {
+    out += c1.substring(0,8).padEnd(10) + numCols.map(c2=>pearsonCorr(allData,c1,c2).toFixed(4).padStart(10)).join('') + '\n';
+  });
+  return out;
+}
+
+function generateRSummary() {
+  const numCols = getNumericColumns().slice(0,4);
+  return numCols.map(c => {
+    const vals = allData.map(r=>parseFloat(r[c])).filter(v=>!isNaN(v)).sort((a,b)=>a-b);
+    const n=vals.length, m=vals.reduce((a,b)=>a+b,0)/n;
+    return `${c}:\n  Min: ${vals[0].toFixed(3)}  Median: ${vals[Math.floor(n/2)].toFixed(3)}  Mean: ${m.toFixed(3)}  Max: ${vals[n-1].toFixed(3)}`;
+  }).join('\n\n');
+}
+
+function formatDataFrame(data) {
+  if (!data.length) return 'Empty DataFrame';
+  const cols = Object.keys(data[0]).slice(0,6);
+  const header = cols.map(c=>c.substring(0,10).padStart(12)).join('');
+  const rows = data.map(row => cols.map(c=>String(row[c]||'').substring(0,10).padStart(12)).join(''));
+  return header + '\n' + rows.join('\n');
+}
+
+function loadTemplate() {
+  const lang = document.getElementById('langSelect').value;
+  const templates = {
+    python: `# Análisis Exploratorio de Datos (EDA) - Python
+import statistics
+import math
+
+# Información del dataset
+print("=== INFO DEL DATASET ===")
+print(df.shape)
+print(df.dtypes)
+
+# Estadísticas descriptivas
+print("\\n=== ESTADÍSTICAS ===")
+print(df.describe())
+
+# Valores nulos
+print("\\n=== VALORES NULOS ===")
+print(df.isnull().sum())
+
+# Correlaciones
+print("\\n=== CORRELACIONES ===")
+print(df.corr())
+
+# Primeras filas
+print("\\n=== MUESTRA ===")
+print(df.head(5))`,
+    r: `# Análisis Exploratorio - R
+# Resumen estadístico
+print("=== RESUMEN ===")
+print(summary(df))
+
+# Estructura
+print("\\n=== ESTRUCTURA ===")
+print(str(df))
+
+# Dimensiones
+print("Filas:", nrow(df))
+print("Columnas:", ncol(df))
+
+# Nombres de columnas
+print("Columnas:", names(df))
+
+# Librerías sugeridas:
+library(ggplot2)
+library(dplyr)
+library(tidyr)`
+  };
+  document.getElementById('codeTextarea').value = templates[lang];
+}
+
+function clearConsole() {
+  document.getElementById('codeTextarea').value = '';
+  document.getElementById('codeOutput').textContent = '# Salida del código aparecerá aquí...';
+}
+
+// ============================================================
+// CHATBOT IA
+// ============================================================
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  input.style.height = '42px';
+  addChatMessage('user', msg);
+  showTyping();
+  setTimeout(() => {
+    const response = generateAIResponse(msg);
+    hideTyping();
+    addChatMessage('ai', response);
+  }, 800 + Math.random() * 600);
+}
+
+function sendSuggestion(text) {
+  document.getElementById('chatInput').value = text;
+  sendChat();
+}
+
+function addChatMessage(role, content) {
+  const msgs = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `msg ${role === 'user' ? 'user' : 'ai'}`;
+  const avatarContent = role === 'user' ? '👤' : '🧠';
+  div.innerHTML = `
+    <div class="msg-avatar">${avatarContent}</div>
+    <div class="msg-content">${formatMessage(content)}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  chatHistory.push({ role, content });
+}
+
+function formatMessage(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/```([\s\S]+?)```/g, '<pre><code>$1</code></pre>')
+    .replace(/\n/g, '<br>');
+}
+
+let typingEl = null;
+function showTyping() {
+  const msgs = document.getElementById('chatMessages');
+  typingEl = document.createElement('div');
+  typingEl.className = 'msg ai';
+  typingEl.innerHTML = `<div class="msg-avatar">🧠</div><div class="msg-content"><div class="chat-typing"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;
+  msgs.appendChild(typingEl);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function hideTyping() { if (typingEl) { typingEl.remove(); typingEl = null; } }
+
+function generateAIResponse(msg) {
+  const lower = msg.toLowerCase();
+  const numCols = getNumericColumns();
+  const catCols = getCategoryColumns();
+  const hasData = allData.length > 0;
+
+  // Resumen ejecutivo
+  if (lower.includes('resumen') || lower.includes('ejecutivo') || lower.includes('analiza')) {
+    if (!hasData) return 'Por favor, carga primero un dataset para que pueda analizarlo. Soporto archivos **.xlsx, .csv, .json, .pdf** y **.docx**.';
+    return `**Resumen Ejecutivo del Dataset**\n\n**Archivo:** ${activeDataset}\n**Dimensiones:** ${allData.length.toLocaleString()} filas × ${columns.length} columnas\n\n**Variables:**\n- Numéricas (${numCols.length}): ${numCols.slice(0,5).join(', ')}${numCols.length>5?'...':''}\n- Categóricas (${catCols.length}): ${catCols.slice(0,5).join(', ')}${catCols.length>5?'...':''}\n\n**Calidad de datos:**\n- Valores nulos: ${countNulls()} (${((countNulls()/(allData.length*columns.length))*100).toFixed(1)}%)\n\n${numCols.length>0?`**Variable principal (${numCols[0]}):**\n- Media: ${(allData.map(r=>parseFloat(r[numCols[0]])).filter(v=>!isNaN(v)).reduce((a,b)=>a+b,0)/allData.length).toFixed(2)}\n- Min/Max: ${Math.min(...allData.map(r=>parseFloat(r[numCols[0]])).filter(v=>!isNaN(v))).toFixed(2)} / ${Math.max(...allData.map(r=>parseFloat(r[numCols[0]])).filter(v=>!isNaN(v))).toFixed(2)}`:'Sin columnas numéricas detectadas'}\n\n**Recomendaciones:**\n${countNulls()>0?'- Tratar los valores nulos con imputación o eliminación\n':''}- Usar el **Editor SQL** para consultas específicas\n- Explorar correlaciones en el **Dashboard**`;
+  }
+
+  // SQL
+  if (lower.includes('sql') || lower.includes('consulta') || lower.includes('query')) {
+    const table = activeDataset ? activeDataset.replace(/\.[^.]+$/,'').replace(/[^a-z0-9_]/gi,'_') : 'datos';
+    return `**Consultas SQL para tu dataset**\n\nPuedes usar estas consultas en el **Editor SQL**:\n\n\`\`\`sql\n-- Ver todas las columnas\nSELECT * FROM ${table} LIMIT 20;\n\n-- Estadísticas básicas${numCols.length?`\nSELECT\n  COUNT(*) as total_filas${numCols.slice(0,3).map(c=>`,\n  AVG(${c}) as media_${c},\n  MIN(${c}) as min_${c},\n  MAX(${c}) as max_${c}`).join('')}\nFROM ${table};`:''}\n\n${catCols.length?`-- Agrupación por categoría\nSELECT ${catCols[0]}, COUNT(*) as total\nFROM ${table}\nGROUP BY ${catCols[0]}\nORDER BY total DESC\nLIMIT 10;`:''}\n\n-- Filtrar datos\nSELECT * FROM ${table}\nWHERE columna = 'valor'\nLIMIT 50;\`\`\`\n\nCopia estas consultas en el **Editor SQL** para ejecutarlas.`;
+  }
+
+  // Python
+  if (lower.includes('python') || lower.includes('pandas') || lower.includes('código')) {
+    return `**Código Python para análisis**\n\nEjecútalo en la **Consola Python/R**:\n\n\`\`\`python\nimport pandas as pd\nimport numpy as np\nimport statistics\n\n# El dataset está disponible como 'df'\nprint("Dimensiones:", df.shape)\nprint("Tipos:\\n", df.dtypes)\n\n# Estadísticas descriptivas\nprint("\\n=== Estadísticas ===\\n", df.describe())\n\n# Valores nulos\nprint("\\nNulos:\\n", df.isnull().sum())\n\n# ${numCols.length?`Correlaciones:\nprint("\\nCorrelaciones:\\n", df[${JSON.stringify(numCols.slice(0,4))}].corr())`:'# Sin columnas numéricas'}\n\n# Detección de outliers (IQR)\n${numCols.length?`col = '${numCols[0]}'\nQ1 = df[col].quantile(0.25)\nQ3 = df[col].quantile(0.75)\nIQR = Q3 - Q1\noutliers = df[(df[col] < Q1 - 1.5*IQR) | (df[col] > Q3 + 1.5*IQR)]\nprint(f"Outliers en {col}: {len(outliers)}")`:''}\`\`\``;
+  }
+
+  // Nulos
+  if (lower.includes('nul') || lower.includes('missing') || lower.includes('vacío')) {
+    if (!hasData) return 'Carga un dataset primero para analizar valores nulos.';
+    const nullsByCol = columns.map(c => ({ col:c, nulls: allData.filter(r=>r[c]===''||r[c]===null||r[c]===undefined).length })).filter(x=>x.nulls>0).sort((a,b)=>b.nulls-a.nulls);
+    if (!nullsByCol.length) return '✅ **¡Excelente!** No se detectaron valores nulos en tu dataset. Los datos están completos.';
+    return `**Análisis de Valores Nulos**\n\n**Columnas con nulos:**\n${nullsByCol.slice(0,8).map(x=>`- \`${x.col}\`: **${x.nulls}** nulos (${((x.nulls/allData.length)*100).toFixed(1)}%)`).join('\n')}\n\n**Estrategias de tratamiento:**\n- **Eliminación:** Eliminar filas con nulos si son <5% del total\n- **Imputación numérica:** Reemplazar con media, mediana o moda\n- **Imputación categórica:** Usar la categoría más frecuente o "Desconocido"\n- **Interpolación:** Para series temporales ordenadas\n\n**Código Python:**\n\`\`\`python\n# Eliminar filas con nulos\ndf_clean = df.dropna()\n\n# Imputar con media\ndf['${nullsByCol[0]?.col}'] = df['${nullsByCol[0]?.col}'].fillna(df['${nullsByCol[0]?.col}'].mean())\`\`\``;
+  }
+
+  // Anomalías
+  if (lower.includes('anomal') || lower.includes('outlier') || lower.includes('atípic')) {
+    if (!hasData || !numCols.length) return 'Necesito datos numéricos para detectar anomalías. Carga un dataset con columnas numéricas.';
+    const results = numCols.slice(0,5).map(col => {
+      const vals = allData.map(r=>parseFloat(r[col])).filter(v=>!isNaN(v));
+      const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+      const std = Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/vals.length);
+      const outliers = vals.filter(v=>Math.abs(v-mean)>3*std);
+      const q1=vals.sort((a,b)=>a-b)[Math.floor(vals.length*.25)];
+      const q3=vals[Math.floor(vals.length*.75)];
+      const iqrOut = vals.filter(v=>v<q1-1.5*(q3-q1)||v>q3+1.5*(q3-q1)).length;
+      return `- \`${col}\`: **${outliers.length}** outliers (3σ) | **${iqrOut}** (IQR)`;
+    });
+    return `**Detección de Anomalías y Outliers**\n\n**Métodos usados:**\n- **3σ:** Valores a más de 3 desviaciones estándar de la media\n- **IQR:** Valores fuera de [Q1-1.5×IQR, Q3+1.5×IQR]\n\n**Resultados por columna:**\n${results.join('\n')}\n\n**Recomendación:** Los outliers pueden ser errores de datos o eventos genuinos. Investiga cada caso antes de eliminarlos.`;
+  }
+
+  // Visualización
+  if (lower.includes('gráf') || lower.includes('visualiz') || lower.includes('chart') || lower.includes('plot')) {
+    if (!hasData) return 'Carga primero un dataset para recomendar visualizaciones.';
+    const recs = [];
+    if (numCols.length >= 2) recs.push('📊 **Dispersión** — Ideal para ver relación entre ' + numCols[0] + ' y ' + numCols[1]);
+    if (catCols.length) recs.push('📊 **Barras** — Perfecto para comparar categorías en ' + catCols[0]);
+    if (numCols.length) recs.push('📈 **Histograma/Barras** — Para ver la distribución de ' + numCols[0]);
+    if (catCols.length && numCols.length) recs.push('🎂 **Pastel** — Para proporciones por ' + catCols[0]);
+    if (numCols.length >= 3) recs.push('🌐 **Radar** — Para comparar múltiples métricas simultáneamente');
+    return `**Recomendaciones de Visualización**\n\nBasándome en tu dataset (${numCols.length} cols numéricas, ${catCols.length} categóricas):\n\n${recs.join('\n')}\n\n**Para crear un gráfico:**\n1. Ve al módulo **Visualización** en la barra lateral\n2. Selecciona el tipo de gráfico\n3. Elige las columnas para ejes X e Y\n4. Ajusta la agregación y la paleta\n\n¿Quieres que te genere el código para alguno de estos gráficos?`;
+  }
+
+  // Regresión
+  if (lower.includes('regres') || lower.includes('predicc') || lower.includes('modelo')) {
+    if (!hasData || numCols.length < 2) return 'Necesito al menos 2 columnas numéricas para un análisis de regresión.';
+    const x = numCols[0], y = numCols[1];
+    const xv = allData.map(r=>parseFloat(r[x])).filter(v=>!isNaN(v));
+    const yv = allData.map(r=>parseFloat(r[y])).filter(v=>!isNaN(v));
+    const n = Math.min(xv.length, yv.length);
+    const mx = xv.slice(0,n).reduce((a,b)=>a+b,0)/n;
+    const my = yv.slice(0,n).reduce((a,b)=>a+b,0)/n;
+    const b1 = xv.slice(0,n).reduce((s,x,i)=>s+(x-mx)*(yv[i]-my),0) / xv.slice(0,n).reduce((s,x)=>s+(x-mx)**2,0);
+    const b0 = my - b1*mx;
+    const r = pearsonCorr(allData, x, y);
+    return `**Análisis de Regresión Lineal Simple**\n\n**Variables:** ${x} (X) → ${y} (Y)\n\n**Ecuación:** Y = ${b0.toFixed(4)} + ${b1.toFixed(4)}·X\n\n**Métricas:**\n- Correlación de Pearson (r): **${r.toFixed(4)}**\n- R² (coef. determinación): **${(r**2).toFixed(4)}** (explica ${((r**2)*100).toFixed(1)}% de la varianza)\n- Pendiente (β₁): ${b1.toFixed(4)}\n- Intercepto (β₀): ${b0.toFixed(4)}\n\n**Código Python:**\n\`\`\`python\nfrom scipy import stats\nslope, intercept, r, p, se = stats.linregress(df['${x}'], df['${y}'])\nprint(f'Y = {intercept:.4f} + {slope:.4f}·X')\nprint(f'R² = {r**2:.4f}, p-value = {p:.6f}')\`\`\``;
+  }
+
+  // Saludo
+  if (lower.includes('hola') || lower.includes('hello') || lower.includes('buenos') || lower.includes('buenas')) {
+    return `¡Hola! Soy tu **Analista de Datos IA**. ${hasData ? `Veo que tienes cargado **${activeDataset}** con ${allData.length.toLocaleString()} filas. ¿Qué análisis quieres hacer?` : 'Para empezar, **carga un archivo** (Excel, CSV, JSON, etc.) usando el panel lateral.'}`;
+  }
+
+  // Respuesta genérica
+  if (!hasData) {
+    return `Para responder a esa pregunta necesito datos. **Carga un archivo** haciendo clic en el área de subida o arrastrando:\n- **.xlsx / .xls** — Excel\n- **.csv** — Valores separados por comas\n- **.json** — JSON estructurado\n- **.pdf / .docx** — Documentos (análisis IA)\n\nUna vez cargado, puedo hacer análisis estadísticos, generar SQL, código Python/R, detectar anomalías y mucho más.`;
+  }
+
+  return `**Respuesta sobre "${msg}"**\n\nBasándome en tu dataset **${activeDataset}** (${allData.length} filas, ${columns.length} columnas):\n\n${numCols.length > 0 ? `Las variables numéricas principales son: ${numCols.slice(0,4).join(', ')}` : 'No se detectaron columnas numéricas'}\n${catCols.length > 0 ? `\nVariables categóricas: ${catCols.slice(0,4).join(', ')}` : ''}\n\n¿Puedes ser más específico sobre qué aspecto del análisis te interesa?\n- Estadísticas descriptivas\n- Visualizaciones\n- Consultas SQL\n- Código Python/R\n- Detección de anomalías\n- Modelos predictivos`;
+}
+
+function chatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+
+function autoResize(el) {
+  el.style.height = '42px';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ============================================================
+// AUTO ANALYSIS
+// ============================================================
+function runAutoAnalysis() {
+  if (!allData.length) { showToast('Carga un dataset primero'); return; }
+  switchPanel('chatbot', document.querySelectorAll('.nav-item')[7]);
+  addChatMessage('user', 'Analiza mis datos y dame un resumen ejecutivo completo');
+  showTyping();
+  setTimeout(() => {
+    hideTyping();
+    addChatMessage('ai', generateAIResponse('Analiza mis datos y dame un resumen ejecutivo completo'));
+  }, 1000);
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function downloadText(content, filename, type) {
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportData() {
+  if (!allData.length) { showToast('Sin datos para exportar'); return; }
+  downloadText(Papa.unparse(allData), 'export_datamind.csv', 'text/csv');
+  showToast('✓ CSV exportado');
+}
+
+// Drag & drop
+const app = document.querySelector('.app');
+app.addEventListener('dragover', e => e.preventDefault());
+app.addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+});
+</script>
+</body>
+</html>
